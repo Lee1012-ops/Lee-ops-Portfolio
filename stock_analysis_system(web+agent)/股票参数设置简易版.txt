@@ -1,0 +1,32 @@
+{
+  "stock_code": "AAPL",
+  "stock_name": "Apple Inc.",
+  "market": "美股",
+  "currency": "USD",
+  "current_price": 175.50,
+  "change": 2.30,
+  "change_percent": 1.33,
+  "open": 173.20,
+  "close": 175.50,
+  "high": 176.00,
+  "low": 173.00,
+  "volume": 55000000,
+  "amount": 9625000000,
+  "technical_indicators": {
+    "ma5": 174.20,
+    "ma10": 173.50,
+    "ma20": 172.80,
+    "rsi": 62.5
+  },
+  "recommendation": "买入",
+  "history": [
+    {
+      "date": "2026-03-21",
+      "open": 173.20,
+      "close": 175.50,
+      "high": 176.00,
+      "low": 173.00,
+      "volume": 55000000
+    }
+  ]
+}

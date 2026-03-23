@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>全球股票分析系统</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.1.1/dist/chartjs-chart-financial.min.js"></script>
+</head>
+<body>
+
+<!-- ══════════════ NAV ══════════════ -->
+<nav class="navbar">
+  <div class="nav-brand">
+    <span class="brand-icon">📈</span>
+    <span class="brand-text">全球股票分析系统</span>
+  </div>
+  <div class="search-area">
+    <div class="search-group">
+      <select id="market-select" class="select-input">
+        <option value="美股">🇺🇸 美股</option>
+        <option value="A股">🇨🇳 A股</option>
+        <option value="港股">🇭🇰 港股</option>
+      </select>
+      <input id="stock-input" class="text-input" type="text" placeholder="输入股票代码 (如 AAPL)" />
+      <select id="days-select" class="select-input">
+        <option value="30">近30天</option>
+        <option value="60">近60天</option>
+        <option value="90">近90天</option>
+        <option value="180">近180天</option>
+      </select>
+      <button id="analyze-btn" class="btn-primary" onclick="analyzeStock()">
+        <span id="btn-text">分析</span>
+        <span id="btn-spinner" class="spinner hidden"></span>
+      </button>
+      <!-- 模式切换 -->
+      <div class="mode-toggle">
+        <button id="mode-simple-btn" class="mode-btn active" onclick="setMode('simple')">简易版</button>
+        <button id="mode-full-btn"   class="mode-btn"        onclick="setMode('full')">完整版</button>
+      </div>
+    </div>
+    <div class="quick-tags">
+      <span class="tag" onclick="quickSearch('AAPL','美股')">AAPL</span>
+      <span class="tag" onclick="quickSearch('TSLA','美股')">TSLA</span>
+      <span class="tag" onclick="quickSearch('NVDA','美股')">NVDA</span>
+      <span class="tag" onclick="quickSearch('000001','A股')">平安银行</span>
+      <span class="tag" onclick="quickSearch('00700','港股')">腾讯</span>
+    </div>
+  </div>
+</nav>
+
+<!-- ══════════════ MAIN ══════════════ -->
+<main class="main-content">
+
+  <!-- Welcome Screen -->
+  <div id="welcome-screen" class="welcome">
+    <div class="welcome-icon">📊</div>
+    <h2>欢迎使用全球股票分析系统</h2>
+    <p>支持 A股、美股、港股 实时数据分析<br>包含技术指标、基本面、风险评估、投资建议</p>
+    <div class="welcome-examples">
+      <button class="example-btn" onclick="quickSearch('AAPL','美股')">苹果公司 AAPL</button>
+      <button class="example-btn" onclick="quickSearch('NVDA','美股')">英伟达 NVDA</button>
+      <button class="example-btn" onclick="quickSearch('000001','A股')">平安银行</button>
+      <button class="example-btn" onclick="quickSearch('00700','港股')">腾讯控股</button>
+    </div>
+  </div>
+
+  <!-- Error Message -->
+  <div id="error-panel" class="error-panel hidden">
+    <span class="error-icon">⚠️</span>
+    <span id="error-msg"></span>
+  </div>
+
+  <!-- ══════ 简易版 Dashboard ══════ -->
+  <div id="simple-dashboard" class="hidden">
+
+    <!-- 简易股票头部 -->
+    <div class="card simple-header-card">
+      <div class="simple-stock-title">
+        <div class="simple-name-block">
+          <h1 id="s-stock-name" class="stock-name-text"></h1>
+          <div class="simple-badges">
+            <span id="s-code-badge"   class="badge"></span>
+            <span id="s-market-badge" class="badge badge-blue"></span>
+            <span id="s-currency-badge" class="badge badge-yellow"></span>
+          </div>
+        </div>
+        <div class="simple-price-block">
+          <div id="s-current-price" class="price-big"></div>
+          <div id="s-price-change"  class="price-change"></div>
+        </div>
+      </div>
+      <!-- 快捷指标 -->
+      <div class="key-metrics-row">
+        <div class="metric-item"><span class="metric-label">开盘</span><span id="s-open"   class="metric-val"></span></div>
+        <div class="metric-item"><span class="metric-label">最高</span><span id="s-high"   class="metric-val up"></span></div>
+        <div class="metric-item"><span class="metric-label">最低</span><span id="s-low"    class="metric-val down"></span></div>
+        <div class="metric-item"><span class="metric-label">收盘</span><span id="s-close"  class="metric-val"></span></div>
+        <div class="metric-item"><span class="metric-label">成交量</span><span id="s-volume" class="metric-val"></span></div>
+        <div class="metric-item"><span class="metric-label">成交额</span><span id="s-amount" class="metric-val"></span></div>
+      </div>
+    </div>
+
+    <!-- 技术指标 + 建议 -->
+    <div class="row-simple-3col">
+      <!-- MA均线卡片 -->
+      <div class="card simple-indicator-card">
+        <div class="card-header"><h3>📊 均线指标</h3></div>
+        <div id="s-ma-block" class="simple-indicator-body"></div>
+      </div>
+      <!-- RSI卡片 -->
+      <div class="card simple-indicator-card">
+        <div class="card-header"><h3>📈 RSI 指标</h3></div>
+        <div id="s-rsi-block" class="simple-indicator-body rsi-center"></div>
+      </div>
+      <!-- 投资建议卡片 -->
+      <div class="card simple-indicator-card">
+        <div class="card-header"><h3>💡 投资建议</h3></div>
+        <div id="s-rec-block" class="simple-indicator-body rec-center"></div>
+      </div>
+    </div>
+
+    <!-- 历史K线图 -->
+    <div class="card">
+      <div class="card-header">
+        <h3>历史价格走势</h3>
+        <div class="chart-tabs">
+          <button class="chart-tab active" onclick="switchSimpleChart('price', this)">收盘价</button>
+          <button class="chart-tab" onclick="switchSimpleChart('volume', this)">成交量</button>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="simpleChart"></canvas>
+      </div>
+    </div>
+
+    <!-- 历史数据表 -->
+    <div class="card">
+      <div class="card-header"><h3>历史数据明细</h3></div>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr><th>日期</th><th>开盘</th><th>收盘</th><th>最高</th><th>最低</th><th>成交量</th></tr>
+          </thead>
+          <tbody id="s-history-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 原始 JSON 输出 -->
+    <div class="card">
+      <div class="card-header">
+        <h3>📄 简易版 JSON 输出</h3>
+        <button class="chart-tab" onclick="copySimpleJson()">复制 JSON</button>
+      </div>
+      <pre id="s-json-output" class="json-output"></pre>
+    </div>
+
+  </div><!-- /simple-dashboard -->
+
+  <!-- Result Dashboard -->
+  <div id="dashboard" class="hidden">
+
+    <!-- Stock Header -->
+    <div class="stock-header card">
+      <div class="stock-title">
+        <div>
+          <h1 id="stock-name" class="stock-name-text"></h1>
+          <span id="stock-code-badge" class="badge"></span>
+          <span id="market-badge" class="badge badge-blue"></span>
+        </div>
+        <div class="price-block">
+          <div id="current-price" class="price-big"></div>
+          <div id="price-change" class="price-change"></div>
+        </div>
+      </div>
+      <div class="key-metrics-row">
+        <div class="metric-item"><span class="metric-label">开盘</span><span id="m-open" class="metric-val"></span></div>
+        <div class="metric-item"><span class="metric-label">最高</span><span id="m-high" class="metric-val up"></span></div>
+        <div class="metric-item"><span class="metric-label">最低</span><span id="m-low" class="metric-val down"></span></div>
+        <div class="metric-item"><span class="metric-label">昨收</span><span id="m-preclose" class="metric-val"></span></div>
+        <div class="metric-item"><span class="metric-label">成交量</span><span id="m-volume" class="metric-val"></span></div>
+        <div class="metric-item"><span class="metric-label">换手率</span><span id="m-turnover" class="metric-val"></span></div>
+        <div class="metric-item"><span class="metric-label">量比</span><span id="m-volratio" class="metric-val"></span></div>
+        <div class="metric-item"><span class="metric-label">振幅</span><span id="m-amplitude" class="metric-val"></span></div>
+      </div>
+    </div>
+
+    <!-- Chart + Recommendation Row -->
+    <div class="row-2col">
+      <!-- Price Chart -->
+      <div class="card chart-card">
+        <div class="card-header">
+          <h3>价格走势</h3>
+          <div class="chart-tabs">
+            <button class="chart-tab active" onclick="switchChart('price', this)">收盘价</button>
+            <button class="chart-tab" onclick="switchChart('volume', this)">成交量</button>
+          </div>
+        </div>
+        <div class="chart-wrap">
+          <canvas id="priceChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Investment Recommendation -->
+      <div class="card recommend-card">
+        <div class="card-header"><h3>投资建议</h3></div>
+        <div class="recommend-body">
+          <div id="rec-badge" class="rec-badge"></div>
+          <div class="score-ring-wrap">
+            <canvas id="scoreChart" width="160" height="160"></canvas>
+            <div id="score-center" class="score-center-text"></div>
+          </div>
+          <div class="target-prices">
+            <div class="tp-item"><span>目标价</span><strong id="tp-target"></strong></div>
+            <div class="tp-item"><span>目标高位</span><strong id="tp-high"></strong></div>
+            <div class="tp-item"><span>目标低位</span><strong id="tp-low"></strong></div>
+            <div class="tp-item"><span>风险等级</span><strong id="tp-risk"></strong></div>
+            <div class="tp-item"><span>投资周期</span><strong id="tp-horizon"></strong></div>
+            <div class="tp-item"><span>适合人群</span><strong id="tp-suitable"></strong></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabs Section -->
+    <div class="card tab-card">
+      <div class="tabs">
+        <button class="tab active" data-tab="tab-valuation">估值&财务</button>
+        <button class="tab" data-tab="tab-technical">技术指标</button>
+        <button class="tab" data-tab="tab-risk">风险评估</button>
+        <button class="tab" data-tab="tab-fund">资金流向</button>
+        <button class="tab" data-tab="tab-institution">机构持仓</button>
+        <button class="tab" data-tab="tab-analyst">分析师</button>
+        <button class="tab" data-tab="tab-logics">投资逻辑</button>
+        <button class="tab" data-tab="tab-history">历史数据</button>
+      </div>
+
+      <!-- 估值&财务 -->
+      <div id="tab-valuation" class="tab-content active">
+        <div class="metrics-grid2">
+          <div class="metrics-section">
+            <h4 class="section-title">估值指标</h4>
+            <div class="kv-list" id="valuation-list"></div>
+          </div>
+          <div class="metrics-section">
+            <h4 class="section-title">财务指标</h4>
+            <div class="kv-list" id="financials-list"></div>
+          </div>
+        </div>
+        <div class="metrics-section mt-16">
+          <h4 class="section-title">基础信息</h4>
+          <div class="kv-list kv-grid" id="basic-list"></div>
+        </div>
+      </div>
+
+      <!-- 技术指标 -->
+      <div id="tab-technical" class="tab-content hidden">
+        <div class="tech-grid">
+          <div class="tech-block">
+            <h4 class="section-title">均线系统</h4>
+            <div class="kv-list" id="ma-list"></div>
+          </div>
+          <div class="tech-block">
+            <h4 class="section-title">MACD</h4>
+            <div class="kv-list" id="macd-list"></div>
+          </div>
+          <div class="tech-block">
+            <h4 class="section-title">KDJ</h4>
+            <div class="kv-list" id="kdj-list"></div>
+          </div>
+          <div class="tech-block">
+            <h4 class="section-title">RSI</h4>
+            <div class="kv-list" id="rsi-list"></div>
+          </div>
+          <div class="tech-block">
+            <h4 class="section-title">布林带 (BOLL)</h4>
+            <div class="kv-list" id="boll-list"></div>
+          </div>
+          <div class="tech-block">
+            <h4 class="section-title">其他指标</h4>
+            <div class="kv-list" id="other-indicators-list"></div>
+          </div>
+          <div class="tech-block tech-block-wide">
+            <h4 class="section-title">形态识别</h4>
+            <div class="kv-list" id="pattern-list"></div>
+          </div>
+        </div>
+        <!-- Radar Chart for Scores -->
+        <div class="radar-wrap">
+          <h4 class="section-title">综合评分雷达图</h4>
+          <canvas id="radarChart" width="360" height="300"></canvas>
+        </div>
+      </div>
+
+      <!-- 风险评估 -->
+      <div id="tab-risk" class="tab-content hidden">
+        <div class="metrics-grid2">
+          <div class="metrics-section">
+            <h4 class="section-title">风险指标</h4>
+            <div class="kv-list" id="risk-list"></div>
+          </div>
+          <div class="metrics-section">
+            <h4 class="section-title">市场对比</h4>
+            <div class="kv-list" id="market-compare-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 资金流向 -->
+      <div id="tab-fund" class="tab-content hidden">
+        <div class="metrics-grid3">
+          <div class="metrics-section">
+            <h4 class="section-title">今日资金流向</h4>
+            <div class="kv-list" id="fund-today-list"></div>
+          </div>
+          <div class="metrics-section">
+            <h4 class="section-title">5日资金流向</h4>
+            <div class="kv-list" id="fund-5d-list"></div>
+          </div>
+          <div class="metrics-section">
+            <h4 class="section-title">20日资金流向</h4>
+            <div class="kv-list" id="fund-20d-list"></div>
+          </div>
+        </div>
+        <div class="metrics-section mt-16">
+          <h4 class="section-title">北向资金</h4>
+          <div class="kv-list kv-grid" id="fund-north-list"></div>
+        </div>
+      </div>
+
+      <!-- 机构持仓 -->
+      <div id="tab-institution" class="tab-content hidden">
+        <div class="kv-list" id="institution-summary-list"></div>
+        <h4 class="section-title mt-16">主要持仓机构 Top 3</h4>
+        <div id="holders-table-wrap"></div>
+      </div>
+
+      <!-- 分析师评级 -->
+      <div id="tab-analyst" class="tab-content hidden">
+        <div class="metrics-grid2">
+          <div class="metrics-section">
+            <h4 class="section-title">评级汇总</h4>
+            <div id="analyst-bar-wrap" class="analyst-bars"></div>
+          </div>
+          <div class="metrics-section">
+            <h4 class="section-title">目标价</h4>
+            <div class="kv-list" id="analyst-target-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 投资逻辑 -->
+      <div id="tab-logics" class="tab-content hidden">
+        <div class="metrics-grid2">
+          <div class="metrics-section">
+            <h4 class="section-title">✅ 投资逻辑</h4>
+            <ul id="logics-list" class="bullet-list green-bullets"></ul>
+          </div>
+          <div class="metrics-section">
+            <h4 class="section-title">⚠️ 风险提示</h4>
+            <ul id="risks-list" class="bullet-list red-bullets"></ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- 历史数据 -->
+      <div id="tab-history" class="tab-content hidden">
+        <div class="kv-list" id="history-stats-list" style="margin-bottom:16px"></div>
+        <div class="table-wrap">
+          <table id="history-table" class="data-table">
+            <thead>
+              <tr>
+                <th>日期</th><th>开盘</th><th>收盘</th><th>最高</th><th>最低</th>
+                <th>成交量</th><th>涨跌幅</th>
+              </tr>
+            </thead>
+            <tbody id="history-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- /tab-card -->
+
+  </div><!-- /dashboard -->
+</main>
+
+<footer class="footer">
+  <span>全球股票分析系统 v1.0 &nbsp;|&nbsp; 数据来源: yfinance + akshare &nbsp;|&nbsp; 仅供参考，不构成投资建议</span>
+</footer>
+
+<script src="/static/js/app.js"></script>
+</body>
+</html>
